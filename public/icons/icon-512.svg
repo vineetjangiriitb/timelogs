@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="102" fill="#1a1a2e"/>
+  <circle cx="230" cy="200" r="108" fill="#6c5ce7"/>
+  <circle cx="282" cy="174" r="90" fill="#1a1a2e"/>
+  <text x="256" y="410" text-anchor="middle" fill="#e0e0e0" font-size="58" font-family="Arial, sans-serif" font-weight="bold">SleepLogs</text>
+</svg>
