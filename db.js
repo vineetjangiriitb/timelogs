@@ -7,6 +7,12 @@ const dbDir = path.dirname(dbPath);
 
 fs.mkdirSync(dbDir, { recursive: true });
 
+const preExisting = fs.existsSync(dbPath);
+console.log(`[db] path=${dbPath}  existed_before=${preExisting}`);
+if (!preExisting) {
+  console.warn('[db] WARNING: database file did not exist — a fresh one will be created. If this happens after every deploy, your persistent volume is NOT mounted at this path.');
+}
+
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');

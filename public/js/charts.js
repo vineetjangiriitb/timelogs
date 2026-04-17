@@ -145,7 +145,7 @@ function barOptions(unit, maxY) {
     responsive: true,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}${unit}` } } },
     scales: {
-      y: { beginAtZero: true, max: maxY, ticks: { callback: v => v + unit }, grid: { color: '#0e1420' } },
+      y: { beginAtZero: true, max: maxY, ticks: { callback: v => v + unit }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#e2e8f0' } },
       x: { grid: { display: false } }
     }
   };
@@ -156,7 +156,7 @@ function lineOptions(min, max, tickCb) {
     responsive: true,
     plugins: { legend: { display: false } },
     scales: {
-      y: { min, max, ticks: { callback: tickCb, stepSize: 1 }, grid: { color: '#0e1420' } },
+      y: { min, max, ticks: { callback: tickCb, stepSize: 1 }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#e2e8f0' } },
       x: { grid: { display: false } }
     }
   };

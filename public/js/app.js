@@ -20,6 +20,7 @@ async function api(path, opts = {}) {
 // ── Init (called after successful auth) ──
 async function init() {
   setupStarRating();
+  updateThemeMetaColor();
   updateGreeting();
   await checkStatus();
   loadLastSleep();
@@ -27,15 +28,34 @@ async function init() {
   await initStudy();
 }
 
-// ── Greeting ──
+// ── Greeting (India Standard Time) ──
+function istHour() {
+  // Get current hour in Asia/Kolkata (IST, UTC+5:30)
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+  const hh = parts.find(p => p.type === 'hour')?.value;
+  return parseInt(hh, 10);
+}
+
 function updateGreeting() {
-  const h = new Date().getHours();
-  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const h = istHour();
+  let greet;
+  if (h >= 5 && h < 12) greet = 'Good morning';
+  else if (h >= 12 && h < 17) greet = 'Good afternoon';
+  else if (h >= 17 && h < 21) greet = 'Good evening';
+  else greet = 'Good night';
+
   const el = document.getElementById('greeting-time');
   const nameEl = document.getElementById('greeting-name');
   if (el) el.textContent = greet;
   if (nameEl && auth.user) nameEl.textContent = auth.user.display_name || auth.user.name || '';
 }
+
+// Refresh greeting every minute so it updates if user leaves the app open
+setInterval(() => { if (document.getElementById('view-home')?.classList.contains('active')) updateGreeting(); }, 60000);
 
 // ── Sleep Status ──
 async function checkStatus() {
@@ -325,6 +345,44 @@ async function loadProfile() {
   ].join('');
 }
 
+// ── Theme management (light / dark / system) ──
+function setTheme(theme) {
+  if (!['light', 'dark', 'system'].includes(theme)) theme = 'dark';
+  localStorage.setItem('sleeplogs_theme', theme);
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeMetaColor();
+  updateThemePickerUI();
+  // Re-render charts if on charts view (so grid colors refresh)
+  if (document.getElementById('view-charts')?.classList.contains('active')) {
+    if (typeof loadCharts === 'function') loadCharts(chartPeriod);
+  }
+}
+
+function updateThemeMetaColor() {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && bg) meta.setAttribute('content', bg);
+}
+
+function updateThemePickerUI() {
+  const current = localStorage.getItem('sleeplogs_theme') || 'dark';
+  document.querySelectorAll('.theme-opt').forEach(b => {
+    b.classList.toggle('selected', b.dataset.themeVal === current);
+  });
+}
+
+// React to OS theme changes when set to "system"
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if ((localStorage.getItem('sleeplogs_theme') || 'dark') === 'system') {
+      updateThemeMetaColor();
+      if (document.getElementById('view-charts')?.classList.contains('active')) {
+        if (typeof loadCharts === 'function') loadCharts(chartPeriod);
+      }
+    }
+  });
+}
+
 // Compatibility shim for old cached HTML referencing switchLog()
 function switchLog() { loadUnifiedLog(); }
 
@@ -334,9 +392,10 @@ function switchView(name) {
   document.getElementById('view-' + name)?.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
 
+  if (name === 'home') updateGreeting();
   if (name === 'log') loadUnifiedLog();
   if (name === 'charts') loadCharts(chartPeriod);
-  if (name === 'profile') loadProfile();
+  if (name === 'profile') { loadProfile(); updateThemePickerUI(); }
 }
 
 // ── Formatters ──

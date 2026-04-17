@@ -11,6 +11,13 @@
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/css/style.css">
+  <script>
+    // Apply theme before paint to avoid flash
+    (function() {
+      var saved = localStorage.getItem('sleeplogs_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -303,6 +310,25 @@
       </div>
       <div class="profile-stats-grid" id="profile-stats"></div>
       <div class="profile-info-card" id="profile-info"></div>
+
+      <div class="theme-picker">
+        <div class="theme-picker-label">Appearance</div>
+        <div class="theme-options">
+          <button class="theme-opt" data-theme-val="light" onclick="setTheme('light')">
+            <span class="theme-opt-icon">&#9728;</span>
+            <span class="theme-opt-label">Light</span>
+          </button>
+          <button class="theme-opt" data-theme-val="dark" onclick="setTheme('dark')">
+            <span class="theme-opt-icon">&#127769;</span>
+            <span class="theme-opt-label">Dark</span>
+          </button>
+          <button class="theme-opt" data-theme-val="system" onclick="setTheme('system')">
+            <span class="theme-opt-icon">&#128187;</span>
+            <span class="theme-opt-label">System</span>
+          </button>
+        </div>
+      </div>
+
       <div class="profile-actions">
         <button class="profile-action-btn logout-btn" onclick="logout()">&#9760; Sign out</button>
       </div>
