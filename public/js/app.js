@@ -64,7 +64,10 @@ async function checkStatus() {
   state.isSleeping = data.is_sleeping;
   state.currentSession = data.current_session;
   updateSleepUI();
-  if (state.isSleeping) startTimer();
+  if (state.isSleeping) {
+    startTimer();
+    showSessionNotification('sleep-session', 'SleepLogs — sleeping', 'Tap Stop when you wake up');
+  }
 }
 
 function updateSleepUI() {
@@ -124,6 +127,7 @@ async function toggleSleep() {
     state.currentSession = { id: data.id, sleep_start: data.sleep_start };
     updateSleepUI();
     startTimer();
+    showSessionNotification('sleep-session', 'SleepLogs — sleeping', 'Tap Stop when you wake up');
   }
 }
 
@@ -138,6 +142,7 @@ async function submitWake(skip = false) {
   updateSleepUI();
   loadLastSleep();
   updateTodayStrip();
+  closeSessionNotification('sleep-session');
   const statusText = document.getElementById('status-text');
   if (statusText) statusText.textContent = `Slept ${formatDuration(data.duration_minutes)}`;
 }
@@ -343,6 +348,66 @@ async function loadProfile() {
     data.work_schedule ? `<div class="profile-row"><span class="profile-row-label">Schedule</span><span class="profile-row-val">${scheduleMap[data.work_schedule] || data.work_schedule}</span></div>` : '',
     data.exercise_frequency ? `<div class="profile-row"><span class="profile-row-label">Exercise</span><span class="profile-row-val">${exerMap[data.exercise_frequency] || data.exercise_frequency}</span></div>` : ''
   ].join('');
+}
+
+// ═══════════════════════════════════════════════
+//  Session Notifications (lock-screen controls)
+// ═══════════════════════════════════════════════
+
+// Ask for notification permission (safe on iOS / older browsers)
+async function ensureNotifPermission() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const r = await Notification.requestPermission();
+    return r === 'granted';
+  } catch { return false; }
+}
+
+async function showSessionNotification(tag, title, body) {
+  if (!('serviceWorker' in navigator)) return;
+  const ok = await ensureNotifPermission();
+  if (!ok) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, {
+      tag,
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      requireInteraction: true,
+      silent: true,
+      renotify: false,
+      actions: [{ action: 'stop', title: 'Stop' }],
+      data: { tag, startedAt: Date.now() }
+    });
+  } catch (e) { console.warn('notif show failed', e); }
+}
+
+async function closeSessionNotification(tag) {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const notifs = await reg.getNotifications({ tag });
+    notifs.forEach(n => n.close());
+  } catch {}
+}
+
+// Handle "Stop" action from the lock screen
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const { type, tag } = event.data || {};
+    if (type !== 'stop-session') return;
+    window.focus();
+    if (tag === 'sleep-session' && state.isSleeping) {
+      // Open quality-rating modal (same as pressing "I'm awake!")
+      switchView('home');
+      toggleSleep();
+    } else if (tag === 'study-session' && typeof studyState !== 'undefined' && studyState.isStudying) {
+      toggleStudy();
+    }
+  });
 }
 
 // ── Theme management (light / dark / system) ──

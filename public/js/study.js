@@ -10,7 +10,11 @@ async function initStudy() {
   studyState.isStudying = data.is_studying;
   studyState.currentSession = data.current_session;
   updateStudyUI();
-  if (studyState.isStudying) startStudyTimer();
+  if (studyState.isStudying) {
+    startStudyTimer();
+    const subj = studyState.currentSession?.subject || 'Study';
+    showSessionNotification('study-session', `Studying — ${subj}`, 'Tap Stop to end the session');
+  }
 }
 
 function updateStudyUI() {
@@ -71,6 +75,7 @@ async function toggleStudy() {
     updateStudyUI();
     loadUnifiedLog();
     updateTodayStrip();
+    closeSessionNotification('study-session');
   } else {
     const subject = document.getElementById('study-subject')?.value || 'General';
     const data = await api('/study/start', { method: 'POST', body: { subject } });
@@ -79,6 +84,7 @@ async function toggleStudy() {
     studyState.currentSession = { session_start: data.session_start, subject: data.subject };
     updateStudyUI();
     startStudyTimer();
+    showSessionNotification('study-session', `Studying — ${studyState.currentSession.subject}`, 'Tap Stop to end the session');
   }
 }
 

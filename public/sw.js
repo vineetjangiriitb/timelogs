@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sleeplogs-v4';
+const CACHE_NAME = 'sleeplogs-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -42,3 +42,27 @@ self.addEventListener('fetch', (e) => {
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
+
+// ── Notification click (Stop from lock screen / shade) ──
+self.addEventListener('notificationclick', (event) => {
+  const tag = event.notification.tag;
+  event.notification.close();
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    let client = allClients.find(c => 'focus' in c);
+    if (client) {
+      await client.focus();
+      client.postMessage({ type: 'stop-session', tag, action: event.action || 'open' });
+    } else {
+      // No open window — open the app; it will resync state on load
+      const newWin = await self.clients.openWindow('/');
+      // Defer posting until client is ready; app will also detect active session via API on init
+      setTimeout(() => {
+        if (newWin) newWin.postMessage({ type: 'stop-session', tag, action: event.action || 'open' });
+      }, 2000);
+    }
+  })());
+});
+
+self.addEventListener('notificationclose', () => { /* no-op */ });
