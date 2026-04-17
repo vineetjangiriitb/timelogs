@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sleeplogs-v5';
+const CACHE_NAME = 'sleeplogs-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
