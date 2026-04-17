@@ -11,6 +11,18 @@
 * **Google Authentication**: Frictionless onboarding leveraging Google Identity provider sign-ins.
 * **Dark Mode Native**: Features a gorgeous standard dark-mode system and an automated light-mode equivalent mapping safely around browser top-panels via calculated `safe-area-inset` styling.
 
+## 🔗 Live Demo
+Try out the live implementation securely hosted here:  
+👉 **[timelog-production-4f7b.up.railway.app](https://timelog-production-4f7b.up.railway.app)**
+
+*Your data is fully secure, completely isolated by Google Authentication, and runs on a protected instance.*
+
+## 📱 Mobile App Usage (PWA)
+TimeLog operates strictly as a Progressive Web App (PWA). Instead of a traditional app store, you can install it seamlessly straight from your browser for a full-screen mobile experience!
+1. **iOS (Safari)**: Tap the "Share" icon at the bottom of the screen, scroll down, and select **Add to Home Screen**. 
+2. **Android (Chrome)**: Tap the 3-dot menu at the top right, and select **Add to Home screen** (or "Install app"). 
+*(Once added, you'll never see browser URL bars again—it operates just like a native app!)*
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -59,9 +71,21 @@ This project has been safely structured to separate sensitive configurations fro
 
 If you are forking or downloading this repository, you **must** supply your own `.env` configuration file to instantiate the authentication layer!
 
-## Deployment
+## 🚢 Deployment (Railway / Cloud Hosted)
 
-TimeLog is deployment-ready for standard virtualized Linux hosts (e.g., Render, Railway). Just configure the `data` volume context onto a persistent directory within your host to ensure the SQLite schema bypasses ephemeral host reboots!
+TimeLog is heavily optimized to be deployed swiftly onto PaaS providers like **Railway**, **Render**, or **Heroku**. Because TimeLog relies on **SQLite**, you **must** configure a Persistent Volume mapped to the data directory so that your logs survive container restarts.
+
+**Deployment Steps for Railway**:
+1. Connect your GitHub repository to a new Railway project.
+2. In your Railway service settings under **Variables**, set:
+   * `GOOGLE_CLIENT_ID` = `your_google_id_here`
+   * `JWT_SECRET` = `a_random_secure_long_string`
+3. Wait for the initial deployment to finish to unlock the Volumes configuration.
+4. Go to the **Volumes** tab in your service settings and click **Add a Volume**.
+5. Set the **Mount Path** to exactly `/app/data` (assuming your root deployment uses Railway's default `/app` structure).
+6. Redeploy your service.
+
+*(Your SQLite database will now securely write to the persistent volume guaranteeing zero data-loss during standard cyclic reboots!)*
 
 ## License
 MIT License. Free to use, fork, and hack into.
