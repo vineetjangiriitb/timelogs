@@ -69,7 +69,7 @@ router.get('/me', (req, res) => {
     name: user.name,
     picture: user.picture,
     display_name: user.display_name,
-    age: user.age,
+    dob: user.dob,
     gender: user.gender,
     sleep_goal_hours: user.sleep_goal_hours,
     occupation: user.occupation,
@@ -81,12 +81,12 @@ router.get('/me', (req, res) => {
 
 // PUT /api/auth/profile — update profile / complete onboarding
 router.put('/profile', (req, res) => {
-  const { display_name, age, gender, sleep_goal_hours, occupation, work_schedule, exercise_frequency, onboarding_complete } = req.body;
+  const { display_name, dob, gender, sleep_goal_hours, occupation, work_schedule, exercise_frequency, onboarding_complete } = req.body;
 
   db.prepare(`
     UPDATE users SET
       display_name = COALESCE(?, display_name),
-      age = COALESCE(?, age),
+      dob = COALESCE(?, dob),
       gender = COALESCE(?, gender),
       sleep_goal_hours = COALESCE(?, sleep_goal_hours),
       occupation = COALESCE(?, occupation),
@@ -95,7 +95,7 @@ router.put('/profile', (req, res) => {
       onboarding_complete = COALESCE(?, onboarding_complete)
     WHERE id = ?
   `).run(
-    display_name ?? null, age ?? null, gender ?? null,
+    display_name ?? null, dob ?? null, gender ?? null,
     sleep_goal_hours ?? null, occupation ?? null,
     work_schedule ?? null, exercise_frequency ?? null,
     onboarding_complete ?? null, req.userId
@@ -105,7 +105,7 @@ router.put('/profile', (req, res) => {
   res.json({
     id: user.id,
     display_name: user.display_name,
-    age: user.age,
+    dob: user.dob,
     gender: user.gender,
     sleep_goal_hours: user.sleep_goal_hours,
     occupation: user.occupation,

@@ -142,7 +142,7 @@ function obNext() {
     if (!name) { shakeInput('ob-name'); return; }
     onboardingData.display_name = name;
   } else if (onboardingStep === 2) {
-    onboardingData.age = parseInt(document.getElementById('ob-age').value) || null;
+    onboardingData.dob = document.getElementById('ob-dob').value || null;
     onboardingData.gender = document.querySelector('.ob-option.selected[data-field="gender"]')?.dataset.value || null;
   } else if (onboardingStep === 3) {
     onboardingData.sleep_goal_hours = parseFloat(document.getElementById('ob-sleep-goal').value);

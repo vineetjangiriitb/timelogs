@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>SleepLogs</title>
+  <title>timelog</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -36,13 +36,13 @@
     <div class="login-content">
       <div class="login-logo">
         <div class="login-icon-wrap">&#9790;</div>
-        <h1 class="login-title">SleepLogs</h1>
-        <p class="login-subtitle">Track sleep, study & workouts.<br>Build better habits.</p>
+        <h1 class="login-title">timelog</h1>
+        <p class="login-subtitle">Track your time on any task.<br>Build better habits.</p>
       </div>
       <div class="login-features">
-        <div class="login-feature"><span>&#128564;</span> Sleep tracking</div>
-        <div class="login-feature"><span>&#128218;</span> Study sessions</div>
-        <div class="login-feature"><span>&#127947;</span> Exercise logs</div>
+        <div class="login-feature"><span>⏳</span> Time tracking</div>
+        <div class="login-feature"><span>📊</span> Deep insights</div>
+        <div class="login-feature"><span>🎨</span> Custom tasks</div>
       </div>
       <div class="login-btn-wrap">
         <div id="google-btn-container"></div>
@@ -74,7 +74,8 @@
       <div class="ob-icon">&#128100;</div>
       <h2>Tell us about yourself</h2>
       <p class="ob-hint">Helps us personalize your insights</p>
-      <input type="number" id="ob-age" class="ob-input" placeholder="Your age" min="10" max="100">
+      <div class="ob-options-label">Date of Birth</div>
+      <input type="date" id="ob-dob" class="ob-input">
       <div class="ob-options-label">Gender</div>
       <div class="ob-options-grid">
         <button class="ob-option" data-field="gender" data-value="male">&#9794; Male</button>
@@ -150,50 +151,11 @@
         </button>
       </header>
 
-      <!-- Today summary strip -->
-      <div class="today-strip" id="today-strip">
-        <div class="today-chip sleep-chip" id="strip-sleep" onclick="switchView('log')">
-          <span class="chip-icon">&#9790;</span>
-          <span class="chip-val" id="strip-sleep-val">—</span>
-          <span class="chip-label">Sleep</span>
-        </div>
-        <div class="today-chip study-chip" id="strip-study" onclick="switchView('log')">
-          <span class="chip-icon">&#128218;</span>
-          <span class="chip-val" id="strip-study-val">—</span>
-          <span class="chip-label">Study</span>
-        </div>
-        <div class="today-chip exercise-chip" id="strip-exercise" onclick="switchView('log')">
-          <span class="chip-icon">&#127947;</span>
-          <span class="chip-val" id="strip-exercise-val">—</span>
-          <span class="chip-label">Exercise</span>
-        </div>
+      <div id="tasks-container" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        <p class="empty-msg">Loading tasks...</p>
       </div>
-
-      <!-- Sleep card -->
-      <div class="home-card sleep-card">
-        <div class="card-status">
-          <span class="card-status-dot" id="sleep-dot"></span>
-          <span id="status-text">Loading...</span>
-        </div>
-        <p class="card-timer" id="status-timer"></p>
-        <div class="hero-btn-wrap">
-          <button id="sleep-btn" class="hero-btn state-awake" onclick="toggleSleep()">
-            <span class="hero-icon" id="hero-icon">&#9790;</span>
-            <span class="hero-label" id="hero-label">I'm going to sleep</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick-log row -->
-      <div class="quick-row">
-        <button class="quick-btn study-btn" id="study-quick-btn" onclick="handleStudyQuick()">
-          <span class="qb-icon">&#128218;</span>
-          <span class="qb-text" id="study-quick-label">Start Study</span>
-        </button>
-        <button class="quick-btn exercise-btn" onclick="openExerciseModal()">
-          <span class="qb-icon">&#127947;</span>
-          <span class="qb-text">Log Workout</span>
-        </button>
+      <div style="padding: 0 16px;">
+        <button class="add-fab" onclick="document.getElementById('task-modal').style.display='flex'">+ Add Task</button>
       </div>
     </section>
 
@@ -203,25 +165,17 @@
         <h1>&#128203; Activity Log</h1>
       </header>
 
-      <!-- Study timer status (shown only while studying) -->
-      <div class="study-status-card" id="study-status-card" style="display:none">
+      <!-- Active Task Banner -->
+      <div class="study-status-card" id="active-task-card" style="display:none">
         <div class="card-status">
-          <span class="card-status-dot study-dot" id="study-dot"></span>
-          <span id="study-status-text">Studying</span>
+          <span class="card-status-dot study-dot" id="active-task-dot"></span>
+          <span id="active-task-status-text">Active Task</span>
         </div>
-        <p class="card-timer" id="study-timer"></p>
-      </div>
-      
-      <!-- Exercise timer status (shown only while exercising) -->
-      <div class="study-status-card" id="exer-status-card" style="display:none">
-        <div class="card-status">
-          <span class="card-status-dot" id="exer-dot" style="background:var(--exer-hi)"></span>
-          <span id="exer-status-text">Exercising</span>
+        <p class="card-timer" id="active-task-timer"></p>
+        <div style="margin-top: 10px;">
+          <button class="modal-btn primary-btn" onclick="stopActiveTask()">Stop Task</button>
         </div>
-        <p class="card-timer" id="exer-timer"></p>
       </div>
-
-      <!-- Quick-log actions removed as requested -->
 
       <div class="list-header">Recent Activity</div>
       <div id="unified-log" class="activity-list"><p class="empty-msg">Loading...</p></div>
@@ -317,51 +271,41 @@
        MODALS
   ═══════════════════════════════════════════════════════════ -->
 
-  <!-- Quality Rating Modal -->
-  <div class="modal-overlay" id="quality-modal" style="display:none">
+  <!-- Add Task Modal -->
+  <div class="modal-overlay" id="task-modal" style="display:none">
     <div class="modal">
-      <div class="modal-icon">&#127769;</div>
-      <h2>How was your sleep?</h2>
-      <p class="modal-sub">Rate the quality of this session</p>
-      <div class="star-rating" id="star-rating">
-        <button class="star" data-val="1">&#9733;</button>
-        <button class="star" data-val="2">&#9733;</button>
-        <button class="star" data-val="3">&#9733;</button>
-        <button class="star" data-val="4">&#9733;</button>
-        <button class="star" data-val="5">&#9733;</button>
+      <div class="modal-icon">✨</div>
+      <h2>Create tasks</h2>
+      <input type="text" id="task-name" class="ob-input small" placeholder="Task name">
+      <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Color</div>
+      <div class="exercise-type-grid" id="task-color-grid" style="margin-bottom: 12px; gap: 8px;">
+        <div class="color-opt active" style="background:#7c3aed" data-color="#7c3aed"></div>
+        <div class="color-opt" style="background:#0ea5e9" data-color="#0ea5e9"></div>
+        <div class="color-opt" style="background:#10b981" data-color="#10b981"></div>
+        <div class="color-opt" style="background:#f59e0b" data-color="#f59e0b"></div>
+        <div class="color-opt" style="background:#ef4444" data-color="#ef4444"></div>
+        <div class="color-opt" style="background:#ec4899" data-color="#ec4899"></div>
       </div>
-      <div class="star-labels">
-        <span>Terrible</span><span></span><span>Okay</span><span></span><span>Amazing</span>
+      <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Icon</div>
+      <div class="exercise-type-grid" id="task-icon-grid" style="margin-bottom: 12px; grid-template-columns: repeat(6, 1fr);">
+        <div class="icon-opt active" data-icon="📌">📌</div>
+        <div class="icon-opt" data-icon="📚">📚</div>
+        <div class="icon-opt" data-icon="💻">💻</div>
+        <div class="icon-opt" data-icon="💪">💪</div>
+        <div class="icon-opt" data-icon="🧹">🧹</div>
+        <div class="icon-opt" data-icon="🎨">🎨</div>
+        <div class="icon-opt" data-icon="🚗">🚗</div>
+        <div class="icon-opt" data-icon="🎮">🎮</div>
+        <div class="icon-opt" data-icon="💼">💼</div>
+        <div class="icon-opt" data-icon="🧘">🧘</div>
       </div>
-      <button class="modal-btn primary-btn" id="modal-submit" onclick="submitWake()">Save &amp; Close</button>
-      <button class="modal-btn ghost-btn" onclick="submitWake(true)">Skip</button>
-    </div>
-  </div>
-
-  <!-- Exercise Log Modal -->
-  <div class="modal-overlay" id="exercise-modal" style="display:none">
-    <div class="modal">
-      <div class="modal-icon">&#127947;</div>
-      <h2>Log a Workout</h2>
-      <div class="exercise-type-grid" id="exercise-type-grid">
-        <button class="ex-type-btn" data-type="Running">&#127939; Running</button>
-        <button class="ex-type-btn" data-type="Walking">&#128694; Walking</button>
-        <button class="ex-type-btn" data-type="Cycling">&#128690; Cycling</button>
-        <button class="ex-type-btn" data-type="Swimming">&#127946; Swimming</button>
-        <button class="ex-type-btn" data-type="Gym">&#127947; Gym</button>
-        <button class="ex-type-btn" data-type="Yoga">&#129340; Yoga</button>
-        <button class="ex-type-btn" data-type="Sports">&#9917; Sports</button>
-        <button class="ex-type-btn" data-type="Other">&#128310; Other</button>
-      </div>
-      <button class="modal-btn primary-btn" onclick="startExercise()">Start Workout</button>
-      <button class="modal-btn ghost-btn" onclick="closeExerciseModal()">Cancel</button>
+      <button class="modal-btn primary-btn" onclick="saveTask()">Create Task</button>
+      <button class="modal-btn ghost-btn" onclick="document.getElementById('task-modal').style.display='none'">Cancel</button>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="/js/charts.js"></script>
-  <script src="/js/study.js"></script>
-  <script src="/js/exercise.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/auth.js"></script>
   <script>

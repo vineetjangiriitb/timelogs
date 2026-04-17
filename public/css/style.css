@@ -220,7 +220,7 @@ input, select { font-family: inherit; }
 
 /* ── ONBOARDING ── */
 .ob-header {
-  padding: 52px 24px 0;
+  padding: max(52px, env(safe-area-inset-top)) 24px 0;
   position: sticky;
   top: 0;
   background: var(--bg);
@@ -440,7 +440,7 @@ input, select { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px 8px;
+  padding: max(16px, env(safe-area-inset-top)) 20px 8px;
   position: sticky;
   top: 0;
   background: var(--bg);
@@ -582,31 +582,50 @@ input, select { font-family: inherit; }
 .hero-icon { font-size: 2.8rem; line-height: 1; }
 .hero-label { font-size: .9rem; font-weight: 600; padding: 0 16px; text-align: center; }
 
-/* ── QUICK ROW ── */
-.quick-row {
-  display: flex;
-  gap: 12px;
-  padding: 0 16px;
-  margin-bottom: 4px;
-}
-.quick-btn {
+/* ── TASK BUTTONS ── */
+.task-btn-container { width: 100%; max-width: 480px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; }
+.task-btn {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  border-radius: var(--radius);
-  font-size: .9rem;
-  font-weight: 600;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-card);
   border: 1.5px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
   transition: all .2s;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.quick-btn:active { transform: scale(.97); }
-.study-btn { background: linear-gradient(135deg, #082030, #0c2d44); color: var(--study-hi); border-color: rgba(14,165,233,.25); }
-.study-btn.active-study { background: linear-gradient(135deg, #0c2d44, #0a3a57); border-color: var(--study); box-shadow: 0 4px 16px var(--study-glow); }
-.exercise-btn { background: linear-gradient(135deg, #081e16, #0c2d22); color: var(--exer-hi); border-color: rgba(16,185,129,.25); }
-.qb-icon { font-size: 1.1rem; }
+.task-btn:active { transform: scale(.98); }
+.task-icon { font-size: 1.3rem; }
+.task-name { flex: 1; text-align: left; }
+.task-delete-btn {
+  display: none;
+  background: var(--poor);
+  color: #fff;
+  padding: 0 20px;
+  font-size: .85rem;
+  font-weight: 700;
+  border-radius: var(--radius);
+  margin-left: -12px;
+  z-index: 2;
+}
+
+.color-opt, .icon-opt {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; cursor: pointer;
+  border: 2px solid transparent;
+}
+.color-opt.active { border-color: #fff; transform: scale(1.1); }
+.icon-opt.active { background: var(--bg-card2); border-color: var(--border-hi); }
+
 
 /* ══════════════ SLEEP HISTORY ══════════════ */
 .history-list {
