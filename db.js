@@ -2,7 +2,12 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'sleeplogs.db');
+let dbPath = path.join(__dirname, 'data', 'sleeplogs.db');
+if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+  dbPath = path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'sleeplogs.db');
+} else if (process.env.DATABASE_PATH) {
+  dbPath = process.env.DATABASE_PATH;
+}
 const dbDir = path.dirname(dbPath);
 
 fs.mkdirSync(dbDir, { recursive: true });
