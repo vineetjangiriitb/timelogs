@@ -13,123 +13,100 @@ function setChartPeriod(days) {
 
 async function loadCharts(days = chartPeriod) {
   chartPeriod = days;
-  await Promise.all([
-    renderSleepCharts(days),
-    renderStudyCharts(days),
-    renderExerciseCharts(days)
-  ]);
-}
-
-// ── SLEEP ──
-async function renderSleepCharts(days) {
-  const data = await api('/stats?days=' + days);
-  if (!data) return;
-
-  renderStatsGrid('sleep-stats-grid', [
-    { val: formatDuration(data.avg_duration_minutes), label: 'Average', color: 'var(--sleep-hi)' },
-    { val: data.current_streak + 'd', label: 'Streak', color: 'var(--gold)' },
-    { val: formatDuration(data.max_duration_minutes), label: 'Best', color: 'var(--good)' },
-    { val: formatDuration(data.min_duration_minutes), label: 'Worst', color: 'var(--poor)' }
+  const [sleepData, studyData, exerData] = await Promise.all([
+    api('/stats?days=' + days),
+    api('/study/stats?days=' + days),
+    api('/exercise/stats?days=' + days)
   ]);
 
-  const labels = data.daily.map(d => shortDate(d.date));
-  const durations = data.daily.map(d => +(d.duration_minutes / 60).toFixed(1));
-  const colors = durations.map(v => v >= 7 ? '#22c55e' : v >= 6 ? '#f59e0b' : '#ef4444');
+  if (!sleepData || !studyData || !exerData) return;
 
-  destroyAndCreate('sleep-main-chart', {
+  // Aggregate stats
+  const totalSleepHours = (sleepData.avg_duration_minutes * days) / 60 || 0;
+  const totalStudyHours = studyData.total_duration_minutes / 60 || 0;
+  const totalExerHours = exerData.total_duration_minutes / 60 || 0;
+  const totalTrackedHours = totalSleepHours + totalStudyHours + totalExerHours;
+
+  renderStatsGrid('unified-stats-grid', [
+    { val: Math.round(totalTrackedHours) + 'h', label: 'Tracked', color: 'var(--text)' },
+    { val: Math.round(totalSleepHours) + 'h', label: 'Sleep', color: '#8b5cf6' },
+    { val: Math.round(totalStudyHours) + 'h', label: 'Study', color: '#10b981' },
+    { val: Math.round(totalExerHours) + 'h', label: 'Exercise', color: '#0ea5e9' }
+  ]);
+
+  // Aggregate daily data
+  const dateMap = {};
+  
+  // Fill dateMap with last `days` dates to ensure zero-filling
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dStr = d.toISOString().slice(0, 10);
+    dateMap[dStr] = { sleep: 0, study: 0, exercise: 0 };
+  }
+
+  if (sleepData.daily) sleepData.daily.forEach(d => { if(dateMap[d.date]) dateMap[d.date].sleep += d.duration_minutes / 60; });
+  if (studyData.daily) studyData.daily.forEach(d => { if(dateMap[d.date]) dateMap[d.date].study += d.duration_minutes / 60; });
+  if (exerData.daily) exerData.daily.forEach(d => { if(dateMap[d.date]) dateMap[d.date].exercise += d.duration_minutes / 60; });
+
+  const labels = Object.keys(dateMap).map(shortDate);
+  const sleepArr = Object.values(dateMap).map(v => v.sleep);
+  const studyArr = Object.values(dateMap).map(v => v.study);
+  const exerArr = Object.values(dateMap).map(v => v.exercise);
+
+  destroyAndCreate('unified-main-chart', {
     type: 'bar',
-    data: { labels, datasets: [{ data: durations, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
-    options: barOptions('h', 12)
+    data: {
+      labels,
+      datasets: [
+        { label: 'Sleep', data: sleepArr, backgroundColor: '#8b5cf6', borderRadius: 4, stack: 'Stack 0' },
+        { label: 'Study', data: studyArr, backgroundColor: '#10b981', borderRadius: 4, stack: 'Stack 0' },
+        { label: 'Exercise', data: exerArr, backgroundColor: '#0ea5e9', borderRadius: 4, stack: 'Stack 0' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+        tooltip: {
+          callbacks: {
+            label: c => ` ${c.dataset.label}: ${c.raw.toFixed(1)}h`
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { 
+          stacked: true, 
+          max: 24, 
+          ticks: { stepSize: 4, callback: v => v + 'h' },
+          grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#e2e8f0' }
+        }
+      }
+    }
   });
 
-  const withQuality = data.daily.filter(d => d.quality != null);
-  if (withQuality.length > 0) {
-    destroyAndCreate('sleep-secondary-chart', {
-      type: 'line',
-      data: {
-        labels: withQuality.map(d => shortDate(d.date)),
-        datasets: [{ data: withQuality.map(d => +d.quality.toFixed(1)), borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,.1)', tension: .3, fill: true, pointBackgroundColor: '#fbbf24', pointRadius: 5 }]
-      },
-      options: lineOptions(0, 5, v => '\u2605'.repeat(Math.round(v)))
-    });
-  } else {
-    destroyAndCreate('sleep-secondary-chart', emptyChart('Rate your sleep to see quality trends'));
-  }
-}
-
-// ── STUDY ──
-async function renderStudyCharts(days) {
-  const data = await api('/study/stats?days=' + days);
-  if (!data) return;
-
-  renderStatsGrid('study-stats-grid', [
-    { val: formatDuration(data.total_duration_minutes), label: 'Total', color: 'var(--study-hi)' },
-    { val: data.total_sessions.toString(), label: 'Sessions', color: 'var(--text)' },
-    { val: formatDuration(data.avg_duration_minutes), label: 'Avg', color: 'var(--study-hi)' },
-    { val: formatDuration(Math.round(data.total_duration_minutes / days)), label: 'Daily', color: 'var(--good)' }
-  ]);
-
-  const labels = data.daily.map(d => shortDate(d.date));
-  const durations = data.daily.map(d => +(d.duration_minutes / 60).toFixed(1));
-
-  destroyAndCreate('study-main-chart', {
-    type: 'bar',
-    data: { labels, datasets: [{ data: durations, backgroundColor: '#0ea5e9', borderRadius: 6, borderSkipped: false }] },
-    options: barOptions('h', Math.max(4, ...durations) + 1)
+  // Render unified pie chart
+  destroyAndCreate('unified-pie-chart', {
+    type: 'doughnut',
+    data: {
+      labels: ['Sleep', 'Study', 'Exercise'],
+      datasets: [{
+        data: [Math.round(totalSleepHours), Math.round(totalStudyHours), Math.round(totalExerHours)],
+        backgroundColor: ['#8b5cf6', '#10b981', '#0ea5e9'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 16 } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}h` } }
+      }
+    }
   });
-
-  if (data.bySubject.length > 0) {
-    const subColors = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#34d399'];
-    destroyAndCreate('study-secondary-chart', {
-      type: 'doughnut',
-      data: {
-        labels: data.bySubject.map(s => s.subject),
-        datasets: [{ data: data.bySubject.map(s => Math.round(s.total_minutes)), backgroundColor: subColors, borderWidth: 0 }]
-      },
-      options: doughnutOptions()
-    });
-  } else {
-    destroyAndCreate('study-secondary-chart', emptyChart('No study sessions yet'));
-  }
 }
 
-// ── EXERCISE ──
-async function renderExerciseCharts(days) {
-  const data = await api('/exercise/stats?days=' + days);
-  if (!data) return;
-
-  renderStatsGrid('exer-stats-grid', [
-    { val: formatDuration(data.total_duration_minutes), label: 'Total', color: 'var(--exer-hi)' },
-    { val: data.total_workouts.toString(), label: 'Workouts', color: 'var(--text)' },
-    { val: formatDuration(data.avg_duration_minutes), label: 'Avg', color: 'var(--exer-hi)' },
-    { val: formatDuration(Math.round(data.total_duration_minutes / days)), label: 'Daily', color: 'var(--good)' }
-  ]);
-
-  const labels = data.daily.map(d => shortDate(d.date));
-  const durations = data.daily.map(d => Math.round(d.duration_minutes));
-
-  destroyAndCreate('exer-main-chart', {
-    type: 'bar',
-    data: { labels, datasets: [{ data: durations, backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false }] },
-    options: barOptions('min', Math.max(60, ...durations) + 10)
-  });
-
-  if (data.byType.length > 0) {
-    const typeColors = ['#10b981','#0ea5e9','#7c3aed','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#34d399'];
-    destroyAndCreate('exer-secondary-chart', {
-      type: 'doughnut',
-      data: {
-        labels: data.byType.map(t => t.exercise_type),
-        datasets: [{ data: data.byType.map(t => Math.round(t.total_minutes)), backgroundColor: typeColors, borderWidth: 0 }]
-      },
-      options: doughnutOptions()
-    });
-  } else {
-    destroyAndCreate('exer-secondary-chart', emptyChart('No workouts logged yet'));
-  }
-}
-
-// ── Helpers ──
 function renderStatsGrid(gridId, tiles) {
   const grid = document.getElementById(gridId);
   if (!grid) return;
@@ -138,47 +115,6 @@ function renderStatsGrid(gridId, tiles) {
       <div class="stat-tile-val" style="color:${t.color}">${t.val}</div>
       <div class="stat-tile-label">${t.label}</div>
     </div>`).join('');
-}
-
-function barOptions(unit, maxY) {
-  return {
-    responsive: true,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}${unit}` } } },
-    scales: {
-      y: { beginAtZero: true, max: maxY, ticks: { callback: v => v + unit }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#e2e8f0' } },
-      x: { grid: { display: false } }
-    }
-  };
-}
-
-function lineOptions(min, max, tickCb) {
-  return {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { min, max, ticks: { callback: tickCb, stepSize: 1 }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#e2e8f0' } },
-      x: { grid: { display: false } }
-    }
-  };
-}
-
-function doughnutOptions() {
-  return {
-    responsive: true,
-    plugins: {
-      legend: { position: 'bottom', labels: { boxWidth: 10, padding: 16, font: { size: 11 } } },
-      tooltip: { callbacks: { label: c => ` ${c.label}: ${formatDuration(c.raw)}` } }
-    }
-  };
-}
-
-function emptyChart(msg) {
-  return {
-    type: 'doughnut',
-    data: { labels: [msg], datasets: [{ data: [1], backgroundColor: ['#1e293b'], borderWidth: 0 }] },
-    options: { plugins: { legend: { display: false }, tooltip: { enabled: false },
-      title: { display: true, text: msg, color: '#8090b0', font: { size: 12 } } } }
-  };
 }
 
 function destroyAndCreate(canvasId, config) {

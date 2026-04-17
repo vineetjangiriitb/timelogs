@@ -26,6 +26,7 @@ async function init() {
   loadLastSleep();
   updateTodayStrip();
   await initStudy();
+  await initExercise();
 }
 
 // ── Greeting (India Standard Time) ──

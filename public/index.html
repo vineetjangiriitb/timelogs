@@ -210,27 +210,17 @@
         </div>
         <p class="card-timer" id="study-timer"></p>
       </div>
-
-      <!-- Quick-log actions -->
-      <div class="log-actions">
-        <div class="log-action-row">
-          <select id="study-subject" class="subject-select">
-            <option value="General">General</option>
-            <option value="Math">Math</option>
-            <option value="Science">Science</option>
-            <option value="Programming">Programming</option>
-            <option value="Language">Language</option>
-            <option value="History">History</option>
-            <option value="Reading">Reading</option>
-            <option value="Work">Work</option>
-            <option value="Other">Other</option>
-          </select>
-          <button class="action-btn study-action-btn" id="study-action-btn" onclick="toggleStudy()">
-            Start Study
-          </button>
+      
+      <!-- Exercise timer status (shown only while exercising) -->
+      <div class="study-status-card" id="exer-status-card" style="display:none">
+        <div class="card-status">
+          <span class="card-status-dot" id="exer-dot" style="background:var(--exer-hi)"></span>
+          <span id="exer-status-text">Exercising</span>
         </div>
-        <button class="add-fab" onclick="openExerciseModal()">+ Log Workout</button>
+        <p class="card-timer" id="exer-timer"></p>
       </div>
+
+      <!-- Quick-log actions removed as requested -->
 
       <div class="list-header">Recent Activity</div>
       <div id="unified-log" class="activity-list"><p class="empty-msg">Loading...</p></div>
@@ -246,54 +236,20 @@
         <button class="period-tab" onclick="setChartPeriod(30)">30 Days</button>
       </div>
 
-      <!-- Sleep Section -->
-      <div class="chart-section">
-        <div class="chart-section-header sleep-section">
-          <span class="csh-icon">&#9790;</span>
-          <h2>Sleep</h2>
+      <!-- Unified 24H Activity Section -->
+      <div class="chart-section" style="margin-top:20px;">
+        <div class="chart-section-header">
+          <span class="csh-icon">&#128202;</span>
+          <h2>Activity Breakdown</h2>
         </div>
-        <div class="stats-grid" id="sleep-stats-grid"></div>
+        <div class="stats-grid" id="unified-stats-grid"></div>
         <div class="chart-card">
-          <h3>Sleep Duration (hours)</h3>
-          <canvas id="sleep-main-chart"></canvas>
-        </div>
-        <div class="chart-card" id="sleep-secondary-wrap">
-          <h3>Sleep Quality Trend</h3>
-          <canvas id="sleep-secondary-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- Study Section -->
-      <div class="chart-section">
-        <div class="chart-section-header study-section">
-          <span class="csh-icon">&#128218;</span>
-          <h2>Study</h2>
-        </div>
-        <div class="stats-grid" id="study-stats-grid"></div>
-        <div class="chart-card">
-          <h3>Study Duration (hours)</h3>
-          <canvas id="study-main-chart"></canvas>
+          <h3>Daily Activity Overview (24 hrs)</h3>
+          <canvas id="unified-main-chart"></canvas>
         </div>
         <div class="chart-card">
-          <h3>Time by Subject</h3>
-          <canvas id="study-secondary-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- Exercise Section -->
-      <div class="chart-section">
-        <div class="chart-section-header exer-section">
-          <span class="csh-icon">&#127947;</span>
-          <h2>Exercise</h2>
-        </div>
-        <div class="stats-grid" id="exer-stats-grid"></div>
-        <div class="chart-card">
-          <h3>Exercise Duration (min)</h3>
-          <canvas id="exer-main-chart"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>Workouts by Type</h3>
-          <canvas id="exer-secondary-chart"></canvas>
+          <h3>Total Time Distribution</h3>
+          <canvas id="unified-pie-chart"></canvas>
         </div>
       </div>
     </section>
@@ -396,11 +352,7 @@
         <button class="ex-type-btn" data-type="Sports">&#9917; Sports</button>
         <button class="ex-type-btn" data-type="Other">&#128310; Other</button>
       </div>
-      <div class="form-group" style="margin-top:8px">
-        <label>Duration (minutes)</label>
-        <input type="number" id="ex-duration" class="ob-input" placeholder="30" min="1" max="600">
-      </div>
-      <button class="modal-btn primary-btn" onclick="submitExercise()">Save Workout</button>
+      <button class="modal-btn primary-btn" onclick="startExercise()">Start Workout</button>
       <button class="modal-btn ghost-btn" onclick="closeExerciseModal()">Cancel</button>
     </div>
   </div>

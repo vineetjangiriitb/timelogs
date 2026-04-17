@@ -2,20 +2,53 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// POST /api/exercise — log a workout
-router.post('/', (req, res) => {
-  const { exercise_type, duration_minutes, intensity, calories, notes, logged_at } = req.body;
-  if (!exercise_type || !duration_minutes) {
-    return res.status(400).json({ error: 'exercise_type and duration_minutes are required' });
+// GET /api/exercise/status
+router.get('/status', (req, res) => {
+  const active = db.prepare(
+    'SELECT * FROM exercise_logs WHERE user_id = ? AND session_end IS NULL'
+  ).get(req.userId);
+
+  if (active) {
+    const elapsed = (Date.now() - new Date(active.session_start + 'Z').getTime()) / 60000;
+    res.json({ is_exercising: true, current_session: { ...active, elapsed_minutes: Math.round(elapsed) } });
+  } else {
+    res.json({ is_exercising: false, current_session: null });
   }
+});
 
-  const at = logged_at || nowStr();
-  const result = db.prepare(`
-    INSERT INTO exercise_logs (user_id, exercise_type, logged_at, duration_minutes, intensity, calories, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(req.userId, exercise_type, at, duration_minutes, intensity || 'moderate', calories || null, notes || null);
+// POST /api/exercise/start
+router.post('/start', (req, res) => {
+  const active = db.prepare(
+    'SELECT id FROM exercise_logs WHERE user_id = ? AND session_end IS NULL'
+  ).get(req.userId);
+  if (active) return res.status(409).json({ error: 'Already exercising' });
 
-  res.status(201).json({ id: result.lastInsertRowid, exercise_type, logged_at: at, duration_minutes });
+  const exercise_type = req.body.exercise_type || 'Gym';
+  const now = nowStr();
+  const result = db.prepare(
+    'INSERT INTO exercise_logs (user_id, exercise_type, session_start) VALUES (?, ?, ?)'
+  ).run(req.userId, exercise_type, now);
+
+  res.status(201).json({ id: result.lastInsertRowid, exercise_type, session_start: now, status: 'exercising' });
+});
+
+// POST /api/exercise/stop
+router.post('/stop', (req, res) => {
+  const active = db.prepare(
+    'SELECT * FROM exercise_logs WHERE user_id = ? AND session_end IS NULL'
+  ).get(req.userId);
+  if (!active) return res.status(409).json({ error: 'No active exercise session' });
+
+  const now = nowStr();
+  const duration = (new Date(now + 'Z') - new Date(active.session_start + 'Z')) / 60000;
+
+  db.prepare(`
+    UPDATE exercise_logs SET session_end = ?, duration_minutes = ?, notes = ?
+    WHERE id = ? AND user_id = ?
+  `).run(now, duration, req.body.notes || null, active.id, req.userId);
+
+  res.json({ id: active.id, exercise_type: active.exercise_type, session_start: active.session_start,
+    session_end: now, duration_minutes: Math.round(duration) });
 });
 
 // GET /api/exercise/records?days=30
@@ -25,8 +58,8 @@ router.get('/records', (req, res) => {
 
   const records = db.prepare(`
     SELECT * FROM exercise_logs
-    WHERE user_id = ? AND logged_at >= ?
-    ORDER BY logged_at DESC LIMIT 100
+    WHERE user_id = ? AND session_end IS NOT NULL AND session_start >= ?
+    ORDER BY session_start DESC LIMIT 100
   `).all(req.userId, cutoff);
 
   res.json({ records });
@@ -40,25 +73,25 @@ router.get('/stats', (req, res) => {
   const agg = db.prepare(`
     SELECT SUM(duration_minutes) as total_dur, COUNT(*) as total_workouts,
            AVG(duration_minutes) as avg_dur, SUM(calories) as total_calories
-    FROM exercise_logs WHERE user_id = ? AND logged_at >= ?
+    FROM exercise_logs WHERE user_id = ? AND session_end IS NOT NULL AND session_start >= ?
   `).get(req.userId, cutoff);
 
   const daily = db.prepare(`
-    SELECT DATE(logged_at) as date, SUM(duration_minutes) as duration_minutes,
+    SELECT DATE(session_start) as date, SUM(duration_minutes) as duration_minutes,
            COUNT(*) as workouts, SUM(calories) as calories
-    FROM exercise_logs WHERE user_id = ? AND logged_at >= ?
-    GROUP BY DATE(logged_at) ORDER BY date ASC
+    FROM exercise_logs WHERE user_id = ? AND session_end IS NOT NULL AND session_start >= ?
+    GROUP BY DATE(session_start) ORDER BY date ASC
   `).all(req.userId, cutoff);
 
   const byType = db.prepare(`
     SELECT exercise_type, SUM(duration_minutes) as total_minutes, COUNT(*) as workouts
-    FROM exercise_logs WHERE user_id = ? AND logged_at >= ?
+    FROM exercise_logs WHERE user_id = ? AND session_end IS NOT NULL AND session_start >= ?
     GROUP BY exercise_type ORDER BY total_minutes DESC
   `).all(req.userId, cutoff);
 
   res.json({
     total_duration_minutes: Math.round(agg.total_dur || 0),
-    total_workouts: agg.total_workouts,
+    total_workouts: agg.total_workouts || 0,
     avg_duration_minutes: Math.round(agg.avg_dur || 0),
     total_calories: agg.total_calories || 0,
     daily, byType
