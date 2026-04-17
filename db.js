@@ -86,6 +86,37 @@ db.exec(`
   )
 `);
 
+// Auto-migrate schema on production server if the old `logged_at` column still exists
+const exerCols = db.pragma('table_info(exercise_logs)');
+if (exerCols.some(c => c.name === 'logged_at')) {
+  console.log('[db] Migrating exercise_logs to new schema...');
+  db.exec('ALTER TABLE exercise_logs RENAME TO exercise_logs_old');
+  
+  db.exec(`
+    CREATE TABLE exercise_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      exercise_type TEXT NOT NULL,
+      session_start TEXT NOT NULL,
+      session_end TEXT,
+      duration_minutes REAL,
+      intensity TEXT DEFAULT 'moderate',
+      calories INTEGER,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  db.exec(`
+    INSERT INTO exercise_logs (id, user_id, exercise_type, session_start, session_end, duration_minutes, intensity, calories, notes, created_at)
+    SELECT id, user_id, exercise_type, logged_at, datetime(logged_at, '+' || CAST(duration_minutes AS INTEGER) || ' minutes'), duration_minutes, intensity, calories, notes, created_at
+    FROM exercise_logs_old;
+  `);
+
+  db.exec('DROP TABLE exercise_logs_old');
+}
+
 db.exec(`CREATE INDEX IF NOT EXISTS idx_sleep_start   ON sleep_records(sleep_start)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_sleep_user    ON sleep_records(user_id)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_study_user    ON study_sessions(user_id)`);
