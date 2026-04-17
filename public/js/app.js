@@ -226,8 +226,8 @@ async function loadUnifiedLog() {
   (exerR?.records || []).forEach(r => {
     items.push({
       kind: 'exercise',
-      time: r.logged_at,
-      dateKey: r.logged_at.split(' ')[0],
+      time: r.session_start,
+      dateKey: r.session_start.split(' ')[0],
       html: renderExerciseItem(r)
     });
   });
@@ -298,7 +298,7 @@ function renderExerciseItem(r) {
     <span class="ai-icon">${icon}</span>
     <div class="ai-info">
       <div class="ai-title">${r.exercise_type}</div>
-      <div class="ai-sub">Workout</div>
+      <div class="ai-sub">Workout &bull; ${formatTime(r.session_start)}</div>
     </div>
     <div>
       <div class="ai-dur exer-color">${dur}</div>
