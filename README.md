@@ -1,91 +1,81 @@
-# TimeLog ⏳
+# Timelogs ⏳
 
-**TimeLog** is a lightweight, fully customizable task and time-tracking application built to adapt entirely to how *you* want to track your day. Instead of forcing you into rigid activity schemas like "Sleep" or "Exercise," TimeLog relies on dynamic custom tasks with highly personalized emojis and colors.
+**Timelogs** is a lightweight, fully customizable activity and time-tracking PWA. Define your own tasks with custom emojis and colors, manually log when you did them (start / end / notes), and see beautiful mobile-first charts over any date range.
 
 ## Features ✨
 
-* **Dynamically Created Tasks**: Personalize your lifestyle tracker. Map specific emojis and custom colors to unique tasks in your life instantly with native emoji palettes and native color pickers.
-* **Smart Concurrency Lock**: Tracks your active state down to the millisecond. If you're running a task, the platform locks you out of initiating a new workflow elsewhere until you stop or complete the active cycle.
-* **Inline Clock Displays**: The responsive user interface tracks the runtime of your task efficiently inline, so your tracking card breathes and scales seamlessly into any mobile device footprint.
-* **Comprehensive Dashboards**: Check 7-day and 30-day activity trends broken down natively through detailed data graphs.
-* **Google Authentication**: Frictionless onboarding leveraging Google Identity provider sign-ins.
-* **Dark Mode Native**: Features a gorgeous standard dark-mode system and an automated light-mode equivalent mapping safely around browser top-panels via calculated `safe-area-inset` styling.
+* **Custom tasks** — create activities with any emoji (full emoji palette) and any color (native picker + quick swatches).
+* **Manual time logging** — tap a task and enter start time, end time, and optional notes. No start/stop clock to babysit.
+* **Smart activity log** — each day rolls up to a single row per task with total time. Tap to expand and see every session's start, end, and notes.
+* **Mobile-first charts** — stacked bar chart by task (per hour for Today, per day for Week/Month), doughnut breakdown, quick stats, and a fullscreen mode for detailed viewing on phone.
+* **Flexible date ranges** — Today, Week, Month, or a custom from → to range.
+* **Google sign-in** — fast onboarding, zero password friction.
+* **Dark & light themes** — automatic or manual, with proper safe-area handling.
 
 ## 🔗 Live Demo
-Try out the live implementation securely hosted here:  
 👉 **[timelog-production-4f7b.up.railway.app](https://timelog-production-4f7b.up.railway.app)**
 
-*Your data is fully secure, completely isolated by Google Authentication, and runs on a protected instance.*
+## 📱 Install as a PWA
+Timelogs runs as a Progressive Web App — install it from your browser for a fullscreen native-app experience.
 
-## 📱 Mobile App Usage (PWA)
-TimeLog operates strictly as a Progressive Web App (PWA). Instead of a traditional app store, you can install it seamlessly straight from your browser for a full-screen mobile experience!
-1. **iOS (Safari)**: Tap the "Share" icon at the bottom of the screen, scroll down, and select **Add to Home Screen**. 
-2. **Android (Chrome)**: Tap the 3-dot menu at the top right, and select **Add to Home screen** (or "Install app"). 
-*(Once added, you'll never see browser URL bars again—it operates just like a native app!)*
+1. **iOS (Safari)**: Tap the **Share** icon → **Add to Home Screen**.
+2. **Android (Chrome)**: Tap the 3-dot menu → **Add to Home screen** (or **Install app**).
+
+*If you installed an earlier version under a different name, uninstall it from your home screen first so the new name and icon take effect.*
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/en/) (v18+)
-- A [Google Cloud Console project](https://console.cloud.google.com/) equipped with an OAuth 2.0 Client ID (To enable Google sign-in)
+- A [Google Cloud Console project](https://console.cloud.google.com/) with an OAuth 2.0 Client ID
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/vineetjangiriitb/timelog.git
-   cd timelog
-   ```
+```bash
+git clone https://github.com/vineetjangiriitb/timelog.git
+cd timelog
+npm install
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+Create a `.env` file in the project root:
 
-3. **Configure Environment Variables**
-   Create a `.env` file in the root directory and add the following keys:
-   ```env
-   # Your Google OAuth 2.0 Web Application Client ID
-   GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+JWT_SECRET=your_super_secret_jwt_string_here
+PORT=3000
+```
 
-   # An arbitrary long string for backend JWT encryption
-   JWT_SECRET=your_super_secret_jwt_string_here
+Run it:
 
-   PORT=3000
-   ```
+```bash
+npm start
+```
 
-4. **Initialize application**
-   ```bash
-   npm start
-   ```
-   *The application will automatically deploy the `data/` directory and configure the underlying SQLite database schema upon the first connection.*
+Then open `http://localhost:3000`.
 
-5. **Open locally**
-   Head to `http://localhost:3000` to start tracking your time.
+## 🧭 Usage
 
-## 🔐 Security & Privacy Notice (For Open Source)
+1. Sign in with Google.
+2. On **Home**, tap **+ Add Task** to create an activity (name, color, emoji).
+3. Tap a task to open the **Log activity** modal — set start time, end time, optional notes, save.
+4. Open **Log** to see each day grouped by task with totals. Tap a task row to expand and see every session.
+5. Open **Charts** to see stacked-by-task time per hour (Today) or per day (Week/Month/Custom). Tap the ⛶ button on any chart for fullscreen.
 
-This project has been safely structured to separate sensitive configurations from the public repository layout:
-* `data/timelog.db` - The underlying SQLite engine containing personal data is completely ignored from Source Control via `.gitignore`.
-* `.env` - Authentication keys including `GOOGLE_CLIENT_ID` and `JWT_SECRET` are blocked from Source Control via `.gitignore`.
+## 🔐 Security & Privacy
 
-If you are forking or downloading this repository, you **must** supply your own `.env` configuration file to instantiate the authentication layer!
+* `data/timelog.db` (your personal SQLite store) is `.gitignored`.
+* `.env` (containing `GOOGLE_CLIENT_ID` and `JWT_SECRET`) is `.gitignored`.
+* Forks must supply their own `.env` to enable auth.
 
-## 🚢 Deployment (Railway / Cloud Hosted)
+## 🚢 Deployment (Railway)
 
-TimeLog is heavily optimized to be deployed swiftly onto PaaS providers like **Railway**, **Render**, or **Heroku**. Because TimeLog relies on **SQLite**, you **must** configure a Persistent Volume mapped to the data directory so that your logs survive container restarts.
+Timelogs uses **SQLite**, so a persistent volume is required on PaaS hosts.
 
-**Deployment Steps for Railway**:
-1. Connect your GitHub repository to a new Railway project.
-2. In your Railway service settings under **Variables**, set:
-   * `GOOGLE_CLIENT_ID` = `your_google_id_here`
-   * `JWT_SECRET` = `a_random_secure_long_string`
-3. Wait for the initial deployment to finish to unlock the Volumes configuration.
-4. Go to the **Volumes** tab in your service settings and click **Add a Volume**.
-5. Set the **Mount Path** to exactly `/app/data` (assuming your root deployment uses Railway's default `/app` structure).
-6. Redeploy your service.
-
-*(Your SQLite database will now securely write to the persistent volume guaranteeing zero data-loss during standard cyclic reboots!)*
+1. Connect the GitHub repo to a new Railway project.
+2. Under **Variables**, set `GOOGLE_CLIENT_ID` and `JWT_SECRET`.
+3. After the first deploy, go to **Volumes** → **Add a Volume**.
+4. Mount it at `/app/data` (matches Railway's default `/app` root).
+5. Redeploy.
 
 ## License
-MIT License. Free to use, fork, and hack into.
+MIT — fork, use, hack.
