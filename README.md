@@ -66,7 +66,7 @@ TimeLog operates strictly as a Progressive Web App (PWA). Instead of a tradition
 ## 🔐 Security & Privacy Notice (For Open Source)
 
 This project has been safely structured to separate sensitive configurations from the public repository layout:
-* `data/sleeplogs.db` - The underlying SQLite engine containing personal data is completely ignored from Source Control via `.gitignore`.
+* `data/timelog.db` - The underlying SQLite engine containing personal data is completely ignored from Source Control via `.gitignore`.
 * `.env` - Authentication keys including `GOOGLE_CLIENT_ID` and `JWT_SECRET` are blocked from Source Control via `.gitignore`.
 
 If you are forking or downloading this repository, you **must** supply your own `.env` configuration file to instantiate the authentication layer!

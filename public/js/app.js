@@ -1,7 +1,8 @@
 const state = {
-  activeSession: null,
-  timerInterval: null,
-  tasks: []
+  tasks: [],
+  records: [],
+  expandedGroups: new Set(),
+  logTaskId: null
 };
 
 async function api(path, opts = {}) {
@@ -19,11 +20,9 @@ async function init() {
   updateThemeMetaColor();
   updateGreeting();
   await loadTasks();
-  await checkStatus();
   setInterval(() => { if (document.getElementById('view-home')?.classList.contains('active')) updateGreeting(); }, 60000);
 
-  // Set up task modal grids
-  document.querySelectorAll('#task-color-grid .color-opt').forEach(opt => {
+  document.querySelectorAll('#task-color-grid .color-opt[data-color]').forEach(opt => {
     opt.addEventListener('click', () => {
       document.querySelectorAll('#task-color-grid .color-opt').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
@@ -31,7 +30,7 @@ async function init() {
   });
   document.querySelectorAll('#task-icon-grid .icon-opt[data-icon]').forEach(opt => {
     opt.addEventListener('click', () => {
-      document.querySelectorAll('#task-icon-grid .active').forEach(o => o.classList.remove('active'));
+      document.querySelectorAll('#task-icon-grid .icon-opt').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
     });
   });
@@ -65,42 +64,28 @@ function renderTasks() {
     return;
   }
 
-  container.innerHTML = state.tasks.map(t => {
-    const isActive = state.activeSession?.task_id === t.id;
-    return `
-      <div class="task-btn-container" style="position: relative; display: flex; align-items: center;">
-        <button class="task-btn ${isActive ? 'active' : ''}" 
-                style="${isActive ? '' : 'border-left-color: ' + t.color}; --task-color: ${t.color}; --task-color-alpha: ${t.color}80;" 
-                onclick="handleTaskClick(${t.id})"
-                oncontextmenu="handleTaskLongPress(event, ${t.id})"
-                ontouchstart="taskTouchStart(event, ${t.id})"
-                ontouchend="taskTouchEnd(event)">
-          <span class="task-icon">${t.icon}</span>
-          <span class="task-name">${t.name}</span>
-          <span class="inline-task-timer" id="inline-timer-${t.id}" style="${isActive ? '' : 'display:none;'}"></span>
-        </button>
-        <button id="delete-task-${t.id}" class="task-delete-btn" onclick="deleteTask(${t.id})">Delete</button>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = state.tasks.map(t => `
+    <div class="task-btn-container" style="position: relative; display: flex; align-items: center;">
+      <button class="task-btn"
+              style="border-left-color: ${t.color}; --task-color: ${t.color}; --task-color-alpha: ${t.color}80;"
+              onclick="openLogModal(${t.id})"
+              oncontextmenu="handleTaskLongPress(event, ${t.id})"
+              ontouchstart="taskTouchStart(event, ${t.id})"
+              ontouchend="taskTouchEnd(event)">
+        <span class="task-icon">${t.icon}</span>
+        <span class="task-name">${t.name}</span>
+      </button>
+      <button id="delete-task-${t.id}" class="task-delete-btn" onclick="deleteTask(${t.id})">Delete</button>
+    </div>
+  `).join('');
 }
 
 let touchTimer;
 function taskTouchStart(e, id) {
-  touchTimer = setTimeout(() => {
-    showTaskDelete(id);
-  }, 600);
+  touchTimer = setTimeout(() => showTaskDelete(id), 600);
 }
-
-function taskTouchEnd(e) {
-  clearTimeout(touchTimer);
-}
-
-function handleTaskLongPress(e, id) {
-  e.preventDefault();
-  showTaskDelete(id);
-}
-
+function taskTouchEnd() { clearTimeout(touchTimer); }
+function handleTaskLongPress(e, id) { e.preventDefault(); showTaskDelete(id); }
 function showTaskDelete(id) {
   document.querySelectorAll('.task-delete-btn').forEach(btn => btn.style.display = 'none');
   const btn = document.getElementById('delete-task-' + id);
@@ -119,34 +104,49 @@ async function deleteTask(id) {
   await loadTasks();
 }
 
-async function handleTaskClick(id) {
-  if (state.activeSession) {
-    if (state.activeSession.task_id === id) {
-      stopActiveTask();
-    } else {
-      alert("A task is already running. Please complete it first.");
-    }
-  } else {
-    startTask(id);
-  }
+// ═══════════ LOG ACTIVITY MODAL ═══════════
+function openLogModal(taskId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  state.logTaskId = taskId;
+  document.getElementById('log-modal-icon').textContent = task.icon;
+  document.getElementById('log-modal-title').textContent = 'Log ' + task.name;
+
+  const now = new Date();
+  const defaultEnd = toLocalInputValue(now);
+  const defaultStart = toLocalInputValue(new Date(now.getTime() - 30 * 60000));
+  document.getElementById('log-start').value = defaultStart;
+  document.getElementById('log-end').value = defaultEnd;
+  document.getElementById('log-notes').value = '';
+  document.getElementById('log-modal').style.display = 'flex';
 }
 
-async function startTask(id) {
-  const data = await api('/tasks/' + id + '/start', { method: 'POST' });
-  if (!data || data.error) {
-    if (data?.error) alert(data.error);
-    return;
-  }
-  await checkStatus();
+function toLocalInputValue(d) {
+  const pad2 = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+async function saveLog() {
+  const start = document.getElementById('log-start').value;
+  const end = document.getElementById('log-end').value;
+  const notes = document.getElementById('log-notes').value.trim();
+  if (!start || !end) { alert('Please provide start and end time'); return; }
+  if (new Date(end) <= new Date(start)) { alert('End time must be after start time'); return; }
+
+  const data = await api('/tasks/' + state.logTaskId + '/log', {
+    method: 'POST',
+    body: { start_time: new Date(start).toISOString(), end_time: new Date(end).toISOString(), notes }
+  });
+  if (data?.error) { alert(data.error); return; }
+  document.getElementById('log-modal').style.display = 'none';
+  if (document.getElementById('view-log')?.classList.contains('active')) loadUnifiedLog();
 }
 
 async function saveTask() {
   const name = document.getElementById('task-name').value.trim();
   if (!name) { shakeInput('task-name'); return; }
-  
-  const color = document.querySelector('#task-color-grid .active')?.dataset.color;
-  const icon = document.querySelector('#task-icon-grid .active')?.dataset.icon || document.getElementById('custom-icon-input')?.value;
-
+  const color = document.querySelector('#task-color-grid .color-opt.active')?.dataset.color;
+  const icon = document.querySelector('#task-icon-grid .icon-opt.active')?.dataset.icon;
   const data = await api('/tasks', { method: 'POST', body: { name, color, icon } });
   if (data && !data.error) {
     document.getElementById('task-modal').style.display = 'none';
@@ -155,101 +155,94 @@ async function saveTask() {
   }
 }
 
-async function checkStatus() {
-  const data = await api('/status');
-  if (!data) return;
-  
-  state.activeSession = data.current_session;
-  renderTasks();
-  
-  const banner = document.getElementById('active-task-card');
-  if (state.activeSession) {
-    banner.style.display = 'flex';
-    document.getElementById('active-task-status-text').textContent = 'Working on: ' + state.activeSession.task_name;
-    document.getElementById('active-task-dot').style.background = state.activeSession.color;
-    startTimer();
-  } else {
-    banner.style.display = 'none';
-    clearInterval(state.timerInterval);
-  }
-}
-
-function startTimer() {
-  clearInterval(state.timerInterval);
-  updateTimerDisplay();
-  state.timerInterval = setInterval(updateTimerDisplay, 1000);
-}
-
-function updateTimerDisplay() {
-  if (!state.activeSession) return;
-  const start = new Date(state.activeSession.start_time + 'Z').getTime();
-  const elapsed = Date.now() - start;
-  const h = Math.floor(elapsed / 3600000);
-  const m = Math.floor((elapsed % 3600000) / 60000);
-  const s = Math.floor((elapsed % 60000) / 1000);
-  const formatted = `${h > 0 ? h+'h ' : ''}${pad(m)}m ${pad(s)}s`;
-  const el = document.getElementById('active-task-timer');
-  if (el) el.textContent = formatted;
-  const inline = document.getElementById('inline-timer-' + state.activeSession.task_id);
-  if (inline) {
-    inline.textContent = formatted;
-    inline.style.display = 'block';
-  }
-}
-
-async function stopActiveTask() {
-  const data = await api('/tasks/stop', { method: 'POST' });
-  if (data && !data.error) {
-    state.activeSession = null;
-    await checkStatus();
-    if (document.getElementById('view-log')?.classList.contains('active')) loadUnifiedLog();
-  }
-}
-
+// ═══════════ UNIFIED LOG (grouped by day → task) ═══════════
 async function loadUnifiedLog() {
   const list = document.getElementById('unified-log');
   if (!list) return;
 
   const data = await api('/records?days=90');
   if (!data || !data.records || data.records.length === 0) {
-    list.innerHTML = '<p class="empty-msg">No logs yet.</p>';
+    list.innerHTML = '<p class="empty-msg">No logs yet. Tap a task on Home to log activity.</p>';
     return;
   }
 
-  const items = data.records;
-  items.sort((a, b) => b.start_time.localeCompare(a.start_time));
+  state.records = data.records;
+  renderUnifiedLog();
+}
 
-  const groups = {};
+function renderUnifiedLog() {
+  const list = document.getElementById('unified-log');
+  const items = [...state.records].sort((a, b) => b.start_time.localeCompare(a.start_time));
+
+  const byDate = {};
   items.forEach(it => {
-    const key = it.start_time.split(' ')[0];
-    (groups[key] = groups[key] || []).push(it);
+    const date = it.start_time.split(' ')[0];
+    (byDate[date] = byDate[date] || []).push(it);
   });
 
   let html = '';
-  for (const [date, dayItems] of Object.entries(groups)) {
+  for (const [date, dayItems] of Object.entries(byDate)) {
+    const byTask = {};
+    dayItems.forEach(it => {
+      const key = it.task_id;
+      if (!byTask[key]) byTask[key] = { task_id: it.task_id, task_name: it.task_name, color: it.color, icon: it.icon, total: 0, sessions: [] };
+      byTask[key].total += (it.duration_minutes || 0);
+      byTask[key].sessions.push(it);
+    });
+
+    const taskGroups = Object.values(byTask).sort((a, b) => b.total - a.total);
+
     html += `<div class="history-date-group">
       <div class="history-date">${formatDate(date)}</div>
-      ${dayItems.map(r => `
-        <div class="activity-item kind-study" style="border-left-color: ${r.color}">
-          <span class="ai-icon">${r.icon}</span>
-          <div class="ai-info">
-            <div class="ai-title">${r.task_name}</div>
-            <div class="ai-sub">${formatTime(r.start_time)}</div>
-          </div>
-          <div>
-            <div class="ai-dur study-color" style="color:${r.color}">${formatDuration(r.duration_minutes)}</div>
-            <button class="history-delete" onclick="deleteRecord(${r.id})" style="display:block;margin-top:4px">&times;</button>
-          </div>
-        </div>`).join('')}
+      ${taskGroups.map(g => {
+        const key = `${date}::${g.task_id}`;
+        const expanded = state.expandedGroups.has(key);
+        return `
+          <div class="activity-item task-group" style="border-left-color:${g.color}; flex-direction:column; align-items:stretch; padding:0;">
+            <button class="task-group-header" onclick="toggleGroup('${key}')"
+                    style="display:flex; align-items:center; gap:12px; padding:14px 16px; background:transparent; color:var(--text); text-align:left; width:100%;">
+              <span class="ai-icon">${g.icon}</span>
+              <div class="ai-info">
+                <div class="ai-title">${escapeHtml(g.task_name)}</div>
+                <div class="ai-sub">${g.sessions.length} session${g.sessions.length>1?'s':''}</div>
+              </div>
+              <div class="ai-dur" style="color:${g.color}">${formatDuration(g.total)}</div>
+              <span class="chev" style="margin-left:6px; color:var(--text-3); transition:transform .2s; ${expanded?'transform:rotate(90deg);':''}">▸</span>
+            </button>
+            ${expanded ? `
+              <div class="session-list" style="border-top:1px solid var(--border); padding:6px 16px 12px;">
+                ${g.sessions.map(s => `
+                  <div class="session-row" style="display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border);">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:.88rem; font-weight:600;">${formatTime(s.start_time)} → ${formatTime(s.end_time)}</div>
+                      <div style="font-size:.78rem; color:var(--text-2); margin-top:2px;">${formatDuration(s.duration_minutes)}</div>
+                      ${s.notes ? `<div style="font-size:.82rem; color:var(--text-2); margin-top:6px; white-space:pre-wrap;">${escapeHtml(s.notes)}</div>` : ''}
+                    </div>
+                    <button class="history-delete" onclick="deleteRecord(${s.id})">&times;</button>
+                  </div>
+                `).join('')}
+              </div>` : ''}
+          </div>`;
+      }).join('')}
     </div>`;
   }
   list.innerHTML = html;
+}
+
+function toggleGroup(key) {
+  if (state.expandedGroups.has(key)) state.expandedGroups.delete(key);
+  else state.expandedGroups.add(key);
+  renderUnifiedLog();
 }
 
 async function deleteRecord(id) {
   if (!confirm('Delete this log?')) return;
   await api('/records/' + id, { method: 'DELETE' });
   loadUnifiedLog();
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 async function loadProfile() {
@@ -261,7 +254,7 @@ async function loadProfile() {
   document.getElementById('profile-email').textContent = data.email || '';
 
   const stat = await api('/stats');
-  
+
   const grid = document.getElementById('profile-stats');
   if (grid) grid.innerHTML = `
     <div class="stat-tile"><div class="stat-tile-val" style="color:var(--study-hi)">${stat?.total_records || 0}</div><div class="stat-tile-label">Total Logs</div></div>
@@ -272,7 +265,7 @@ async function loadProfile() {
   if (data.dob) {
     const dob = new Date(data.dob);
     const diff_ms = Date.now() - dob.getTime();
-    const age_dt = new Date(diff_ms); 
+    const age_dt = new Date(diff_ms);
     userAge = Math.abs(age_dt.getUTCFullYear() - 1970);
   }
 
@@ -292,7 +285,7 @@ async function loadProfile() {
 
 function setTheme(theme) {
   if (!['light', 'dark', 'system'].includes(theme)) theme = 'dark';
-  localStorage.setItem('sleeplogs_theme', theme);
+  localStorage.setItem('timelog_theme', theme);
   document.documentElement.setAttribute('data-theme', theme);
   updateThemeMetaColor();
   updateThemePickerUI();
@@ -305,7 +298,7 @@ function updateThemeMetaColor() {
 }
 
 function updateThemePickerUI() {
-  const current = localStorage.getItem('sleeplogs_theme') || 'dark';
+  const current = localStorage.getItem('timelog_theme') || 'dark';
   document.querySelectorAll('.theme-opt').forEach(b => {
     b.classList.toggle('selected', b.dataset.themeVal === current);
   });
@@ -342,6 +335,7 @@ function formatDate(dateStr) {
 }
 
 function formatTime(isoStr) {
+  if (!isoStr) return '—';
   return new Date(isoStr + 'Z').toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -354,34 +348,50 @@ function shakeInput(id) {
   setTimeout(() => el.classList.remove('shake'), 500);
 }
 
+// ═══════════ CUSTOM COLOR ═══════════
+function openCustomColor() {
+  const input = document.getElementById('custom-color-input');
+  input.click();
+}
+
 function setCustomColor(val) {
   document.querySelectorAll('#task-color-grid .color-opt').forEach(o => o.classList.remove('active'));
-  const btn = document.querySelector('.custom-color-label');
-  btn.classList.add('active');
+  const btn = document.getElementById('custom-color-btn');
+  btn.style.background = val;
+  btn.style.border = '2px solid #fff';
+  btn.textContent = '';
   btn.dataset.color = val;
+  btn.classList.add('active');
 }
 
-function triggerCustomIcon() {
-  document.getElementById('custom-icon-btn').style.display = 'none';
-  const inp = document.getElementById('custom-icon-input');
-  inp.style.display = 'block';
-  inp.focus();
-}
-
-function setCustomIcon(val) {
-  if (val.length > 0) {
-    document.querySelectorAll('#task-icon-grid .active').forEach(o => o.classList.remove('active'));
-    const inp = document.getElementById('custom-icon-input');
-    inp.classList.add('active');
-    inp.dataset.icon = val;
+// ═══════════ EMOJI PICKER ═══════════
+let emojiPickerMounted = false;
+function openEmojiPicker() {
+  const mount = document.getElementById('emoji-picker-mount');
+  if (!emojiPickerMounted) {
+    const picker = document.createElement('emoji-picker');
+    picker.style.width = '100%';
+    picker.style.maxWidth = '320px';
+    picker.addEventListener('emoji-click', (e) => {
+      const unicode = e.detail.unicode;
+      selectCustomIcon(unicode);
+      closeEmojiPicker();
+    });
+    mount.appendChild(picker);
+    emojiPickerMounted = true;
   }
+  document.getElementById('emoji-modal').style.display = 'flex';
 }
 
-function hideCustomIconBlur() {
-  const inp = document.getElementById('custom-icon-input');
-  if (!inp.value) {
-    inp.style.display = 'none';
-    inp.classList.remove('active');
-    document.getElementById('custom-icon-btn').style.display = 'block';
-  }
+function closeEmojiPicker() {
+  document.getElementById('emoji-modal').style.display = 'none';
+}
+
+function selectCustomIcon(emoji) {
+  document.querySelectorAll('#task-icon-grid .icon-opt').forEach(o => o.classList.remove('active'));
+  const btn = document.getElementById('custom-icon-btn');
+  btn.textContent = emoji;
+  btn.style.border = '2px solid var(--study)';
+  btn.dataset.icon = emoji;
+  btn.classList.add('active');
 }

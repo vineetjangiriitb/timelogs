@@ -7,31 +7,6 @@ router.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /api/status - current active task
-router.get('/status', (req, res) => {
-  const active = db.prepare(
-    'SELECT l.*, t.name as task_name, t.icon, t.color FROM task_logs l JOIN tasks t ON l.task_id = t.id WHERE l.user_id = ? AND l.end_time IS NULL'
-  ).get(req.userId);
-
-  if (active) {
-    const elapsed = (Date.now() - new Date(active.start_time + 'Z').getTime()) / 60000;
-    res.json({
-      active: true,
-      current_session: {
-        id: active.id,
-        task_id: active.task_id,
-        task_name: active.task_name,
-        color: active.color,
-        icon: active.icon,
-        start_time: active.start_time,
-        elapsed_minutes: Math.round(elapsed)
-      }
-    });
-  } else {
-    res.json({ active: false, current_session: null });
-  }
-});
-
 // GET /api/tasks
 router.get('/tasks', (req, res) => {
   const tasks = db.prepare('SELECT * FROM tasks WHERE user_id = ? ORDER BY id ASC').all(req.userId);
@@ -52,36 +27,28 @@ router.delete('/tasks/:id', (req, res) => {
   res.json({ deleted: true });
 });
 
-// POST /api/tasks/:id/start
-router.post('/tasks/:id/start', (req, res) => {
+// POST /api/tasks/:id/log — manually log an activity with start & end time
+router.post('/tasks/:id/log', (req, res) => {
   const taskId = req.params.id;
-  const active = db.prepare('SELECT id FROM task_logs WHERE user_id = ? AND end_time IS NULL').get(req.userId);
-  if (active) return res.status(409).json({ error: 'A task is already running. Please complete it first.' });
+  const { start_time, end_time, notes } = req.body;
+  if (!start_time || !end_time) return res.status(400).json({ error: 'start_time and end_time required' });
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND user_id = ?').get(taskId, req.userId);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
-  const now = new Date().toISOString().replace('Z', '').replace('T', ' ').slice(0, 19);
-  const result = db.prepare('INSERT INTO task_logs (user_id, task_id, start_time) VALUES (?, ?, ?)')
-    .run(req.userId, taskId, now);
+  const startMs = new Date(start_time).getTime();
+  const endMs = new Date(end_time).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return res.status(400).json({ error: 'Invalid time' });
+  if (endMs <= startMs) return res.status(400).json({ error: 'End time must be after start time' });
 
-  res.status(201).json({ id: result.lastInsertRowid, task_id: taskId, start_time: now, active: true });
-});
+  const toSql = ms => new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
+  const duration = (endMs - startMs) / 60000;
 
-// POST /api/tasks/stop
-router.post('/tasks/stop', (req, res) => {
-  const active = db.prepare('SELECT * FROM task_logs WHERE user_id = ? AND end_time IS NULL').get(req.userId);
-  if (!active) return res.status(409).json({ error: 'No active task' });
+  const result = db.prepare(
+    'INSERT INTO task_logs (user_id, task_id, start_time, end_time, duration_minutes, notes) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(req.userId, taskId, toSql(startMs), toSql(endMs), duration, notes || null);
 
-  const now = new Date().toISOString().replace('Z', '').replace('T', ' ').slice(0, 19);
-  const startTime = new Date(active.start_time + 'Z').getTime();
-  const endTime = new Date(now + 'Z').getTime();
-  const duration = (endTime - startTime) / 60000;
-
-  db.prepare(`UPDATE task_logs SET end_time = ?, duration_minutes = ? WHERE id = ? AND user_id = ?`)
-    .run(now, duration, active.id, req.userId);
-
-  res.json({ id: active.id, end_time: now, duration_minutes: duration });
+  res.status(201).json({ id: result.lastInsertRowid, task_id: taskId, start_time: toSql(startMs), end_time: toSql(endMs), duration_minutes: duration, notes: notes || null });
 });
 
 // GET /api/records
@@ -90,9 +57,9 @@ router.get('/records', (req, res) => {
   const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 19).replace('T', ' ');
 
   const records = db.prepare(`
-    SELECT l.*, t.name as task_name, t.color, t.icon 
-    FROM task_logs l 
-    JOIN tasks t ON l.task_id = t.id 
+    SELECT l.*, t.name as task_name, t.color, t.icon
+    FROM task_logs l
+    JOIN tasks t ON l.task_id = t.id
     WHERE l.user_id = ? AND l.end_time IS NOT NULL AND l.start_time >= ?
     ORDER BY l.start_time DESC
   `).all(req.userId, cutoff);

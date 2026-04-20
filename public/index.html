@@ -16,7 +16,7 @@
   <script>
     // Apply theme before paint to avoid flash
     (function() {
-      var saved = localStorage.getItem('sleeplogs_theme') || 'dark';
+      var saved = localStorage.getItem('timelog_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', saved);
     })();
   </script>
@@ -160,23 +160,11 @@
       </div>
     </section>
 
-    <!-- ─── UNIFIED LOG (Sleep + Study + Exercise) ─── -->
+    <!-- ─── UNIFIED LOG ─── -->
     <section id="view-log" class="view">
       <header class="app-header flat">
         <h1>&#128203; Activity Log</h1>
       </header>
-
-      <!-- Active Task Banner -->
-      <div class="study-status-card" id="active-task-card" style="display:none">
-        <div class="card-status">
-          <span class="card-status-dot study-dot" id="active-task-dot"></span>
-          <span id="active-task-status-text">Active Task</span>
-        </div>
-        <p class="card-timer" id="active-task-timer"></p>
-        <div style="margin-top: 10px;">
-          <button class="modal-btn primary-btn" onclick="stopActiveTask()">Stop Task</button>
-        </div>
-      </div>
 
       <div class="list-header">Recent Activity</div>
       <div id="unified-log" class="activity-list"><p class="empty-msg">Loading...</p></div>
@@ -276,7 +264,7 @@
   <div class="modal-overlay" id="task-modal" style="display:none">
     <div class="modal">
       <div class="modal-icon">✨</div>
-      <h2>Create tasks</h2>
+      <h2>Create task</h2>
       <input type="text" id="task-name" class="ob-input small" placeholder="Task name">
       <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Color</div>
       <div class="exercise-type-grid" id="task-color-grid" style="margin-bottom: 12px; gap: 8px;">
@@ -286,10 +274,10 @@
         <div class="color-opt" style="background:#f59e0b" data-color="#f59e0b"></div>
         <div class="color-opt" style="background:#ef4444" data-color="#ef4444"></div>
         <div class="color-opt" style="background:#ec4899" data-color="#ec4899"></div>
-        <label class="color-opt custom-color-label" style="background:var(--bg-card2); border:1px dashed var(--text-3); display:flex; position:relative; overflow:hidden;">
-          <span style="font-size: 0.9rem;">➕</span>
-          <input type="color" id="custom-color-input" style="opacity:0; width:100%; height:100%; left:0; top:0; position:absolute; cursor:pointer;" onchange="setCustomColor(this.value)">
-        </label>
+        <div class="color-opt custom-color-label" id="custom-color-btn"
+             style="background:var(--bg-card2); border:1px dashed var(--text-3); font-size:0.9rem;"
+             onclick="openCustomColor()">➕</div>
+        <input type="color" id="custom-color-input" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" oninput="setCustomColor(this.value)">
       </div>
       <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Icon</div>
       <div class="exercise-type-grid" id="task-icon-grid" style="margin-bottom: 12px; grid-template-columns: repeat(6, 1fr);">
@@ -303,15 +291,42 @@
         <div class="icon-opt" data-icon="🎮">🎮</div>
         <div class="icon-opt" data-icon="💼">💼</div>
         <div class="icon-opt" data-icon="🧘">🧘</div>
-        <div class="icon-opt custom-icon-label" id="custom-icon-btn" style="background:var(--bg-card2); border:1px dashed var(--text-3); font-size:0.9rem;" onclick="triggerCustomIcon()">➕</div>
-        <input type="text" id="custom-icon-input" maxlength="2" style="display:none; width: 40px; height: 40px; border-radius: 50%; text-align: center; font-size: 1.2rem; border: 2px solid var(--study); background: var(--bg-input); outline:none;" oninput="setCustomIcon(this.value)" onblur="hideCustomIconBlur()" placeholder="✨">
+        <div class="icon-opt custom-icon-label" id="custom-icon-btn"
+             style="background:var(--bg-card2); border:1px dashed var(--text-3); font-size:0.9rem;"
+             onclick="openEmojiPicker()">➕</div>
       </div>
       <button class="modal-btn primary-btn" onclick="saveTask()">Create Task</button>
       <button class="modal-btn ghost-btn" onclick="document.getElementById('task-modal').style.display='none'">Cancel</button>
     </div>
   </div>
 
+  <!-- Emoji Picker Modal -->
+  <div class="modal-overlay" id="emoji-modal" style="display:none" onclick="if(event.target===this)closeEmojiPicker()">
+    <div class="modal" style="padding:16px; max-width:360px;">
+      <h2 style="margin-bottom:12px">Choose an icon</h2>
+      <div id="emoji-picker-mount"></div>
+      <button class="modal-btn ghost-btn" onclick="closeEmojiPicker()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Log Activity Modal -->
+  <div class="modal-overlay" id="log-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-icon" id="log-modal-icon">⏱️</div>
+      <h2 id="log-modal-title">Log activity</h2>
+      <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Start</div>
+      <input type="datetime-local" id="log-start" class="ob-input small">
+      <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">End</div>
+      <input type="datetime-local" id="log-end" class="ob-input small">
+      <div class="ob-options-label" style="text-align:left; width: 100%; max-width: 320px;">Notes (optional)</div>
+      <textarea id="log-notes" class="ob-input small" rows="3" placeholder="Anything to remember..." style="resize:vertical"></textarea>
+      <button class="modal-btn primary-btn" onclick="saveLog()">Save Log</button>
+      <button class="modal-btn ghost-btn" onclick="document.getElementById('log-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script type="module" src="https://esm.sh/emoji-picker-element@1"></script>
   <script src="/js/charts.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/auth.js"></script>

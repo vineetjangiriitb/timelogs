@@ -2,9 +2,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-let dbPath = path.join(__dirname, 'data', 'sleeplogs.db');
+let dbPath = path.join(__dirname, 'data', 'timelog.db');
 if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
-  dbPath = path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'sleeplogs.db');
+  dbPath = path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'timelog.db');
 } else if (process.env.DATABASE_PATH) {
   dbPath = process.env.DATABASE_PATH;
 }

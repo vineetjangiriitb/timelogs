@@ -1,7 +1,7 @@
 {
-  "name": "sleeplogs",
+  "name": "timelog",
   "version": "1.0.0",
-  "description": "Personal sleep tracking PWA",
+  "description": "Custom Activity & Habit Tracker PWA",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

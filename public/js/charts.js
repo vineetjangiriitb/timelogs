@@ -4,7 +4,7 @@ async function loadCharts(days = 7) {
   document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`.period-tab[onclick="setChartPeriod(${days})"]`)?.classList.add('active');
 
-  const res = await fetch('/api/stats?days=' + days, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('sleeplogs_token') } });
+  const res = await fetch('/api/stats?days=' + days, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('timelog_token') } });
   if (!res.ok) return;
   const data = await res.json();
 

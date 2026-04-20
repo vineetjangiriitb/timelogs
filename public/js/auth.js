@@ -1,5 +1,5 @@
 const auth = {
-  token: localStorage.getItem('sleeplogs_token'),
+  token: localStorage.getItem('timelog_token'),
   user: null,
   googleClientId: null
 };
@@ -19,7 +19,7 @@ async function initAuth() {
       }
       return;
     }
-    localStorage.removeItem('sleeplogs_token');
+    localStorage.removeItem('timelog_token');
     auth.token = null;
   }
   showLogin();
@@ -69,7 +69,7 @@ async function handleGoogleSignIn(response) {
     const data = await res.json();
     auth.token = data.token;
     auth.user = data.user;
-    localStorage.setItem('sleeplogs_token', auth.token);
+    localStorage.setItem('timelog_token', auth.token);
     if (!auth.user.onboarding_complete) showOnboarding();
     else showApp();
   } catch { alert('Sign in failed. Please try again.'); }
@@ -98,7 +98,7 @@ function showApp() {
 }
 
 function logout() {
-  localStorage.removeItem('sleeplogs_token');
+  localStorage.removeItem('timelog_token');
   auth.token = null;
   auth.user = null;
   document.getElementById('app-container').style.display = 'none';
